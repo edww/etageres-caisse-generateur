@@ -90,6 +90,7 @@ window.updateRack3D=function(cfg){
   const clearD=binD+gapD;
   const zFront=rH;
   const zRear=D-rH-uD;
+  const runnerD=D-2*rH;
 
   for(let c=0;c<=cols;c++){
     const x=c*(binW+gapX+uW);
@@ -97,11 +98,15 @@ window.updateRack3D=function(cfg){
     beam(x,0,zRear,uW,H,uD,'post');
   }
 
+  // Deux glissières porteuses par caisse. Elles longent les faces intérieures
+  // des montants avant et arrière, pour pouvoir être vissées dans les montants.
   for(let r=0;r<rows;r++){
     const y=Math.max(0,bottom+r*(binH+gapY)-rH);
-    for(let c=0;c<=cols;c++){
-      const postX=c*(binW+gapX+uW);
-      beam(postX+(uW-rW)/2,y,rH+uD,rW,rH,clearD,'rail');
+    for(let c=0;c<cols;c++){
+      const leftPostX=c*(binW+gapX+uW);
+      const rightPostX=(c+1)*(binW+gapX+uW);
+      beam(leftPostX+uW,y,zFront,rW,rH,runnerD,'rail');
+      beam(rightPostX-rW,y,zFront,rW,rH,runnerD,'rail');
     }
   }
 
