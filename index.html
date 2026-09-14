@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rack à caisses — configurateur métrique</title>
+<style>
+  :root{
+    --bg:#f4f2ed; --panel:#fff; --ink:#171717; --muted:#6c6a64;
+    --line:#d9d5cc; --accent:#222; --soft:#ece8df;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px}
+  header{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:20px}
+  h1{font-size:clamp(28px,4vw,46px);line-height:1;margin:0 0 8px;letter-spacing:-.04em}
+  header p{margin:0;color:var(--muted);max-width:720px}
+  .badge{white-space:nowrap;border:1px solid var(--line);background:var(--panel);padding:8px 10px;border-radius:999px;font-size:12px}
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:18px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .controls{position:sticky;top:14px;align-self:start}
+  h2{font-size:18px;margin:0 0 14px}
+  h3{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:20px 0 10px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  input,select{width:100%;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 11px;font:inherit;color:var(--ink)}
+  input:focus,select:focus{outline:2px solid #b8b3a7;outline-offset:1px}
+  .field{margin-bottom:10px}
+  .actions{display:flex;gap:8px;margin-top:16px}
+  button{appearance:none;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:10px;padding:10px 13px;font:600 13px inherit;cursor:pointer}
+  button.secondary{background:#fff;color:var(--ink);border-color:var(--line)}
+  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .stat{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fcfbf8}
+  .stat b{display:block;font-size:22px;letter-spacing:-.03em}
+  .stat span{font-size:11px;color:var(--muted)}
+  .drawings{display:grid;grid-template-columns:1.4fr .8fr;gap:12px}
+  .drawing{border:1px solid var(--line);border-radius:12px;padding:10px;min-height:280px;background:#faf9f6}
+  .drawing-title{font-size:12px;color:var(--muted);margin:0 0 5px}
+  svg{width:100%;height:250px;display:block}
+  .tables{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .note{margin-top:12px;padding:12px;border-radius:12px;background:var(--soft);font-size:12px;color:#484640;line-height:1.45}
+  .cutcard{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+  .bar{height:14px;background:#e5e1d8;border-radius:7px;overflow:hidden;display:flex;margin-top:7px}
+  .piece{height:100%;border-right:1px solid #fff;background:#908b80}
+  .waste{height:100%;background:#d8d4ca}
+  .small{font-size:11px;color:var(--muted)}
+  @media(max-width:880px){
+    .grid{grid-template-columns:1fr}.controls{position:static}.summary{grid-template-columns:1fr 1fr}
+    .drawings,.tables{grid-template-columns:1fr}.wrap{padding:14px}header{align-items:start;flex-direction:column}
+  }
+  @media print{
+    body{background:#fff}.controls,.actions,.badge{display:none!important}.grid{display:block}.panel{border:0;padding:0}
+    .wrap{max-width:none}.drawing{break-inside:avoid}.tables{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Rack à caisses</h1>
+      <p>Configurateur métrique pour tasseaux français. Rails latéraux, débit automatique et optimisation des barres.</p>
+    </div>
+    <div class="badge">mm · barres métriques · hors-ligne</div>
+  </header>
+
+  <div class="grid">
+    <aside class="panel controls">
+      <h2>Configuration</h2>
+
+      <h3>Caisses</h3>
+      <div class="row">
+        <div class="field"><label>Largeur caisse</label><input id="binW" type="number" value="300" min="50"></div>
+        <div class="field"><label>Profondeur caisse</label><input id="binD" type="number" value="400" min="50"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Hauteur caisse</label><input id="binH" type="number" value="320" min="50"></div>
+        <div class="field"><label>Nombre de caisses</label><input id="count" type="number" value="12" min="1" disabled></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Colonnes</label><input id="cols" type="number" value="4" min="1" max="12"></div>
+        <div class="field"><label>Rangées</label><input id="rows" type="number" value="3" min="1" max="12"></div>
+      </div>
+
+      <h3>Jeux</h3>
+      <div class="row">
+        <div class="field"><label>Jeu latéral / caisse</label><input id="gapX" type="number" value="10" min="0"></div>
+        <div class="field"><label>Jeu vertical</label><input id="gapY" type="number" value="20" min="0"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Jeu profondeur</label><input id="gapD" type="number" value="10" min="0"></div>
+        <div class="field"><label>Garde au sol</label><input id="bottom" type="number" value="60" min="0"></div>
+      </div>
+      <div class="field"><label>Marge au-dessus</label><input id="top" type="number" value="40" min="0"></div>
+
+      <h3>Bois</h3>
+      <div class="field">
+        <label>Montants verticaux</label>
+        <select id="upright">
+          <option value="18x38">18 × 38 mm</option>
+          <option value="27x27">27 × 27 mm</option>
+          <option value="27x44" selected>27 × 44 mm</option>
+          <option value="38x63">38 × 63 mm (½ chevron)</option>
+          <option value="custom">Personnalisé</option>
+        </select>
+      </div>
+      <div class="row customU" style="display:none">
+        <div class="field"><label>Largeur montant</label><input id="uW" type="number" value="27"></div>
+        <div class="field"><label>Profondeur montant</label><input id="uD" type="number" value="44"></div>
+      </div>
+
+      <div class="field">
+        <label>Rails / liaisons</label>
+        <select id="rail">
+          <option value="13x27">13 × 27 mm</option>
+          <option value="18x27">18 × 27 mm</option>
+          <option value="18x38">18 × 38 mm</option>
+          <option value="27x27" selected>27 × 27 mm</option>
+          <option value="27x44">27 × 44 mm</option>
+          <option value="38x63">38 × 63 mm</option>
+          <option value="custom">Personnalisé</option>
+        </select>
+      </div>
+      <div class="row customR" style="display:none">
+        <div class="field"><label>Largeur rail</label><input id="rW" type="number" value="27"></div>
+        <div class="field"><label>Hauteur rail</label><input id="rH" type="number" value="27"></div>
+      </div>
+
+      <h3>Débit</h3>
+      <div class="row">
+        <div class="field"><label>Longueur des barres</label><input id="stock" type="number" value="2400" min="500"></div>
+        <div class="field"><label>Trait de scie</label><input id="kerf" type="number" value="3" min="0" max="10"></div>
+      </div>
+      <div class="field"><label>Prix par barre (€), facultatif</label><input id="price" type="number" value="" min="0" step=".01" placeholder="ex. 6.90"></div>
+
+      <div class="actions">
+        <button onclick="window.print()">Imprimer / PDF</button>
+        <button class="secondary" id="reset">Valeurs par défaut</button>
+      </div>
+      <div class="note">
+        Principe : <b>2 montants avant/arrière par séparation verticale</b>. Les caisses coulissent sur des rails avant-arrière partagés entre deux cases. Deux liaisons pleine largeur en haut et deux en bas rigidifient l'ensemble. Une sangle ou un feuillard diagonal au dos est recommandé.
+      </div>
+    </aside>
+
+    <main>
+      <section class="panel">
+        <div class="summary">
+          <div class="stat"><b id="outW">—</b><span>largeur hors tout</span></div>
+          <div class="stat"><b id="outH">—</b><span>hauteur hors tout</span></div>
+          <div class="stat"><b id="outD">—</b><span>profondeur hors tout</span></div>
+          <div class="stat"><b id="bars">—</b><span>barres de bois</span></div>
+        </div>
+
+        <div class="drawings">
+          <div class="drawing">
+            <p class="drawing-title">Vue de face</p>
+            <svg id="front" viewBox="0 0 700 250" aria-label="Vue de face"></svg>
+          </div>
+          <div class="drawing">
+            <p class="drawing-title">Vue de côté</p>
+            <svg id="side" viewBox="0 0 380 250" aria-label="Vue de côté"></svg>
+          </div>
+        </div>
+
+        <div class="tables">
+          <div>
+            <h2 style="margin-top:18px">Liste de coupe</h2>
+            <table>
+              <thead><tr><th>Pièce</th><th class="num">Qté</th><th class="num">Longueur</th></tr></thead>
+              <tbody id="cutList"></tbody>
+            </table>
+          </div>
+          <div>
+            <h2 style="margin-top:18px">Bois à acheter</h2>
+            <table>
+              <thead><tr><th>Section</th><th class="num">Barres</th><th class="num">Total</th></tr></thead>
+              <tbody id="buyList"></tbody>
+            </table>
+            <div id="cost" class="note" style="display:none"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:14px">
+        <h2>Plan de débit</h2>
+        <div id="patterns"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const ids = ['binW','binD','binH','cols','rows','gapX','gapY','gapD','bottom','top','upright','rail','uW','uD','rW','rH','stock','kerf','price'];
+
+function n(id){ return Math.max(0, Number($(id).value) || 0); }
+function section(selectId, aId, bId){
+  const v=$(selectId).value;
+  if(v==='custom') return [n(aId),n(bId)];
+  return v.split('x').map(Number);
+}
+function mm(v){ return Math.round(v)+' mm'; }
+
+function optimize(pieces, stock, kerf){
+  const groups={};
+  pieces.forEach(p=>{
+    const key=p.section;
+    if(!groups[key]) groups[key]=[];
+    for(let i=0;i<p.qty;i++) groups[key].push({len:p.len,label:p.name});
+  });
+  const result={};
+  Object.entries(groups).forEach(([sec, arr])=>{
+    arr.sort((a,b)=>b.len-a.len);
+    const bins=[];
+    arr.forEach(piece=>{
+      let best=-1, bestRemain=Infinity;
+      for(let i=0;i<bins.length;i++){
+        const used=bins[i].used;
+        const needed=piece.len + (bins[i].pieces.length ? kerf : 0);
+        const rem=stock-used-needed;
+        if(rem>=0 && rem<bestRemain){best=i;bestRemain=rem;}
+      }
+      if(best<0){
+        bins.push({pieces:[piece],used:piece.len});
+      }else{
+        bins[best].used += piece.len + kerf;
+        bins[best].pieces.push(piece);
+      }
+    });
+    result[sec]=bins;
+  });
+  return result;
+}
+
+function drawFront(svg, cfg){
+  const {W,H,cols,rows,uW,binW,binH,gapX,gapY,bottom}=cfg;
+  const pad=28, vw=700, vh=250;
+  const scale=Math.min((vw-pad*2)/W,(vh-pad*2)/H);
+  const ox=(vw-W*scale)/2, oy=(vh-H*scale)/2;
+  let s='';
+  const rect=(x,y,w,h,fill,stroke='#333',sw=1)=>`<rect x="${ox+x*scale}" y="${oy+(H-y-h)*scale}" width="${w*scale}" height="${h*scale}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+  for(let c=0;c<=cols;c++){
+    const x=c*(binW+gapX+uW);
+    s+=rect(x,0,uW,H,'#c7b28a','#6d5c3b');
+  }
+  for(let r=0;r<rows;r++){
+    const y=bottom+r*(binH+gapY);
+    for(let c=0;c<cols;c++){
+      const x=uW+c*(binW+gapX+uW)+(gapX/2);
+      s+=rect(x,y,binW,binH,'#e9ecef','#9a9a9a');
+    }
+  }
+  s+=`<text x="${vw/2}" y="16" text-anchor="middle" font-size="12" fill="#555">${Math.round(W)} mm</text>`;
+  s+=`<text x="12" y="${vh/2}" text-anchor="middle" transform="rotate(-90 12 ${vh/2})" font-size="12" fill="#555">${Math.round(H)} mm</text>`;
+  svg.innerHTML=s;
+}
+
+function drawSide(svg,cfg){
+  const {D,H,rows,binD,binH,gapD,gapY,bottom,uD,rH}=cfg;
+  const pad=28,vw=380,vh=250;
+  const scale=Math.min((vw-pad*2)/D,(vh-pad*2)/H);
+  const ox=(vw-D*scale)/2,oy=(vh-H*scale)/2;
+  let s='';
+  const rect=(x,y,w,h,fill,stroke='#333')=>`<rect x="${ox+x*scale}" y="${oy+(H-y-h)*scale}" width="${w*scale}" height="${h*scale}" fill="${fill}" stroke="${stroke}" stroke-width="1"/>`;
+  s+=rect(0,0,uD,H,'#c7b28a','#6d5c3b');
+  s+=rect(D-uD,0,uD,H,'#c7b28a','#6d5c3b');
+  for(let r=0;r<rows;r++){
+    const y=bottom+r*(binH+gapY);
+    const x=uD+gapD/2;
+    s+=rect(x,y,binD,binH,'#e9ecef','#9a9a9a');
+    s+=rect(uD,y-rH,Math.max(0,D-2*uD),rH,'#c7b28a','#6d5c3b');
+  }
+  s+=`<text x="${vw/2}" y="16" text-anchor="middle" font-size="12" fill="#555">${Math.round(D)} mm</text>`;
+  s+=`<text x="12" y="${vh/2}" text-anchor="middle" transform="rotate(-90 12 ${vh/2})" font-size="12" fill="#555">${Math.round(H)} mm</text>`;
+  svg.innerHTML=s;
+}
+
+function update(){
+  const binW=n('binW'),binD=n('binD'),binH=n('binH');
+  const cols=Math.max(1,Math.round(n('cols'))),rows=Math.max(1,Math.round(n('rows')));
+  $('count').value=cols*rows;
+  const gapX=n('gapX'),gapY=n('gapY'),gapD=n('gapD'),bottom=n('bottom'),top=n('top');
+  const [uW,uD]=section('upright','uW','uD');
+  const [rW,rH]=section('rail','rW','rH');
+  const stock=Math.max(1,n('stock')),kerf=n('kerf');
+
+  const bayW=binW+gapX;
+  const clearD=binD+gapD;
+  const W=(cols+1)*uW + cols*bayW;
+  const H=bottom + rows*binH + Math.max(0,rows-1)*gapY + top;
+  const coreD=2*uD + clearD;
+  const D=coreD + 2*rH;
+
+  const pieces=[
+    {name:'Montants verticaux',qty:(cols+1)*2,len:H,section:`${uW}×${uD}`},
+    {name:'Rails de glissement',qty:(cols+1)*rows,len:clearD,section:`${rW}×${rH}`},
+    {name:'Liaisons pleine largeur haut/bas',qty:4,len:W,section:`${rW}×${rH}`}
+  ];
+
+  $('outW').textContent=mm(W); $('outH').textContent=mm(H); $('outD').textContent=mm(D);
+
+  $('cutList').innerHTML=pieces.map(p=>`<tr><td>${p.name}<div class="small">${p.section} mm</div></td><td class="num">${p.qty}</td><td class="num">${Math.round(p.len)} mm</td></tr>`).join('');
+
+  const opt=optimize(pieces,stock,kerf);
+  let totalBars=0,totalLen=0, buyRows='', patterns='';
+  Object.entries(opt).forEach(([sec,bins])=>{
+    totalBars+=bins.length;
+    const linear=bins.length*stock;
+    totalLen+=linear;
+    buyRows+=`<tr><td>${sec} mm</td><td class="num">${bins.length}</td><td class="num">${(linear/1000).toFixed(1)} m</td></tr>`;
+    patterns+=`<h3 style="margin-top:16px">${sec} mm · ${bins.length} barre${bins.length>1?'s':''} de ${stock} mm</h3>`;
+    bins.forEach((b,i)=>{
+      const waste=Math.max(0,stock-b.used);
+      const segs=b.pieces.map(p=>{
+        const pct=p.len/stock*100;
+        return `<span class="piece" style="width:${pct}%" title="${p.label}: ${Math.round(p.len)} mm"></span>`;
+      }).join('');
+      patterns+=`<div class="cutcard"><b>Barre ${i+1}</b> · ${b.pieces.map(p=>Math.round(p.len)).join(' + ')} mm
+        <div class="small">Chute ≈ ${Math.round(waste)} mm</div>
+        <div class="bar">${segs}<span class="waste" style="width:${Math.max(0,waste/stock*100)}%"></span></div>
+      </div>`;
+    });
+  });
+
+  $('bars').textContent=totalBars;
+  $('buyList').innerHTML=buyRows;
+  $('patterns').innerHTML=patterns;
+
+  const price=Number($('price').value);
+  if(price>0){
+    $('cost').style.display='block';
+    $('cost').innerHTML=`Budget bois indicatif : <b>${(price*totalBars).toFixed(2)} €</b> si toutes les sections coûtaient ${price.toFixed(2)} € par barre. Pour un calcul exact avec deux sections différentes, utilise ce montant seulement comme ordre de grandeur.`;
+  }else $('cost').style.display='none';
+
+  drawFront($('front'),{W,H,cols,rows,uW,binW,binH,gapX,gapY,bottom});
+  drawSide($('side'),{D,H,rows,binD,binH,gapD,gapY,bottom,uD,rH});
+}
+
+ids.forEach(id=>$(id).addEventListener('input',update));
+$('upright').addEventListener('change',()=>{document.querySelector('.customU').style.display=$('upright').value==='custom'?'grid':'none';update()});
+$('rail').addEventListener('change',()=>{document.querySelector('.customR').style.display=$('rail').value==='custom'?'grid':'none';update()});
+$('reset').addEventListener('click',()=>{
+  const vals={binW:300,binD:400,binH:320,cols:4,rows:3,gapX:10,gapY:20,gapD:10,bottom:60,top:40,stock:2400,kerf:3,price:''};
+  Object.entries(vals).forEach(([k,v])=>$(k).value=v);
+  $('upright').value='27x44';$('rail').value='27x27';
+  document.querySelector('.customU').style.display='none';document.querySelector('.customR').style.display='none';
+  update();
+});
+update();
+</script>
+</body>
+</html>
