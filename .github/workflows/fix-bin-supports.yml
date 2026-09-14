@@ -1,0 +1,70 @@
+name: Fix bin support rails
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-bin-supports.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch support rails and cut list
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          s=s.replace(
+              'Les caisses coulissent sur des rails avant-arrière partagés.',
+              'Chaque caisse repose sur <b>deux glissières porteuses avant-arrière</b>, fixées contre les faces intérieures des montants.'
+          )
+
+          # runnerD includes the depth of both posts so each runner can be screwed to them.
+          s=s.replace(
+              'D=2*uD+clearD+2*rH,pieces=[',
+              'D=2*uD+clearD+2*rH,runnerD=D-2*rH,pieces=['
+          )
+          s=s.replace(
+              "{name:'Rails de glissement',qty:(cols+1)*rows,len:clearD,section:`${rW}×${rH}`}",
+              "{name:'Glissières porteuses (2 par caisse)',qty:2*cols*rows,len:runnerD,section:`${rW}×${rH}`}"
+          )
+
+          front="""function drawFront(svg,c){const{W,H,cols,rows,uW,rW,rH,binW,binH,gapX,gapY,bottom}=c,pad=28,vw=700,vh=250,k=Math.min((vw-2*pad)/W,(vh-2*pad)/H),ox=(vw-W*k)/2,oy=(vh-H*k)/2;let s='',rect=(x,y,w,h,f,st='#333')=>`<rect x=\"${ox+x*k}\" y=\"${oy+(H-y-h)*k}\" width=\"${w*k}\" height=\"${h*k}\" fill=\"${f}\" stroke=\"${st}\"/>`;for(let i=0;i<=cols;i++)s+=rect(i*(binW+gapX+uW),0,uW,H,'#c7b28a','#6d5c3b');s+=rect(0,0,W,rH,'#bda578','#6d5c3b')+rect(0,H-rH,W,rH,'#bda578','#6d5c3b');for(let r=0;r<rows;r++){const y=bottom+r*(binH+gapY);for(let i=0;i<cols;i++){const leftPost=i*(binW+gapX+uW),rightPost=(i+1)*(binW+gapX+uW),binX=leftPost+uW+gapX/2;s+=rect(leftPost+uW,y-rH,rW,rH,'#c5aa78','#6d5c3b')+rect(rightPost-rW,y-rH,rW,rH,'#c5aa78','#6d5c3b')+rect(binX,y,binW,binH,'#e9ecef','#aaa')}}s+=`<text x=\"${vw/2}\" y=\"16\" text-anchor=\"middle\" font-size=\"12\" fill=\"#555\">${Math.round(W)} mm</text>`;svg.innerHTML=s}"""
+
+          side="""function drawSide(svg,c){const{D,H,rows,binD,binH,gapD,gapY,bottom,uD,rH}=c,pad=28,vw=380,vh=250,k=Math.min((vw-2*pad)/D,(vh-2*pad)/H),ox=(vw-D*k)/2,oy=(vh-H*k)/2;let s='',rect=(x,y,w,h,f,st='#333')=>`<rect x=\"${ox+x*k}\" y=\"${oy+(H-y-h)*k}\" width=\"${w*k}\" height=\"${h*k}\" fill=\"${f}\" stroke=\"${st}\"/>`,clearD=binD+gapD,zFront=rH,zRear=D-rH-uD,runnerD=D-2*rH;s+=rect(zFront,0,uD,H,'#c7b28a','#6d5c3b')+rect(zRear,0,uD,H,'#c7b28a','#6d5c3b');s+=rect(0,0,rH,rH,'#bda578','#6d5c3b')+rect(D-rH,0,rH,rH,'#bda578','#6d5c3b')+rect(0,H-rH,rH,rH,'#bda578','#6d5c3b')+rect(D-rH,H-rH,rH,rH,'#bda578','#6d5c3b');for(let r=0;r<rows;r++){let y=bottom+r*(binH+gapY);s+=rect(zFront+uD+gapD/2,y,binD,binH,'#e9ecef','#aaa')+rect(zFront,y-rH,runnerD,rH,'#c5aa78','#6d5c3b')}s+=rect(zFront+uD,H-rH,clearD,rH,'#bda578','#6d5c3b');s+=`<text x=\"${vw/2}\" y=\"16\" text-anchor=\"middle\" font-size=\"12\" fill=\"#555\">${Math.round(D)} mm</text>`;svg.innerHTML=s}"""
+
+          s,n1=re.subn(r'function drawFront\(svg,c\)\{.*?\nfunction drawSide', front+'\nfunction drawSide', s, count=1, flags=re.S)
+          s,n2=re.subn(r'function drawSide\(svg,c\)\{.*?\nfunction update', side+'\nfunction update', s, count=1, flags=re.S)
+          s=s.replace(
+              "drawFront($('front'),{W,H,cols,rows,uW,rH,binW,binH,gapX,gapY,bottom})",
+              "drawFront($('front'),{W,H,cols,rows,uW,rW,rH,binW,binH,gapX,gapY,bottom})"
+          )
+
+          checks=[
+              'Glissières porteuses (2 par caisse)' in s,
+              'runnerD=D-2*rH' in s,
+              '2*cols*rows' in s,
+              n1==1,
+              n2==1,
+              'uW,rW,rH' in s,
+          ]
+          if not all(checks):
+              raise SystemExit(f'Patch incomplete: {checks}, replacements={(n1,n2)}')
+
+          p.write_text(s,encoding='utf-8')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html
+          git commit -m "Add two support runners under every bin"
+          git push
