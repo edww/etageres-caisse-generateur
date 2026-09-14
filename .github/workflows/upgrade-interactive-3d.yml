@@ -1,0 +1,63 @@
+name: Upgrade interactive 3D
+
+on:
+  push:
+    paths:
+      - '.github/workflows/upgrade-interactive-3d.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch configurator
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          s=s.replace('*{box-sizing:border-box}body{','*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden}body{')
+          s=s.replace('.iso{margin-top:12px}.iso svg{height:420px}', '.three-panel{margin-top:12px;overflow:hidden}.three-stage{position:relative;width:100%;height:clamp(340px,58vw,620px);border-radius:10px;overflow:hidden;background:linear-gradient(#faf9f6,#f1eee7);touch-action:none}#rack3d{width:100%;height:100%;display:block;touch-action:none}.three-hint{position:absolute;left:12px;bottom:10px;margin:0;padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.82);font-size:11px;color:var(--muted);pointer-events:none}')
+          s=s.replace('.tables{display:grid;grid-template-columns:1fr 1fr;', 'main,.panel,.drawing,.tables,.tables>div{min-width:0}.tables{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);')
+          s=s.replace('table{width:100%;border-collapse:collapse;', '.tables>div{overflow-x:auto}table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;')
+          s=s.replace('.iso svg{height:340px}', '.three-stage{height:420px}')
+          s=s.replace('mm · tasseaux métriques · hors-ligne','mm · tasseaux métriques · 3D interactive')
+
+          s=re.sub(r'<div class="note">La <b>vue 3D masque volontairement les caisses</b>.*?</div>', '<div class="note">Principe : <b>2 montants avant/arrière par séparation verticale</b>. Les caisses coulissent sur des rails avant-arrière partagés. Un <b>cadre supérieur complet</b> relie l’avant et l’arrière sur chaque séparation. Une sangle ou un feuillard diagonal au dos reste recommandé contre le déversement latéral.</div>', s, count=1)
+          s=s.replace('<div class="drawing iso"><p class="drawing-title">Vue 3D isométrique · sans les caisses</p><svg id="iso" viewBox="0 0 900 420"></svg></div>', '<div class="drawing three-panel"><p class="drawing-title">Vue 3D interactive · sans les caisses</p><div class="three-stage" id="rack3dWrap"><canvas id="rack3d" aria-label="Vue 3D interactive du rack sans les caisses"></canvas><p class="three-hint">Glisser pour tourner · pincer pour zoomer</p></div></div>')
+
+          front="""function drawFront(svg,c){const{W,H,cols,rows,uW,rH,binW,binH,gapX,gapY,bottom}=c,pad=28,vw=700,vh=250,k=Math.min((vw-2*pad)/W,(vh-2*pad)/H),ox=(vw-W*k)/2,oy=(vh-H*k)/2;let s='',rect=(x,y,w,h,f,st='#333')=>`<rect x="${ox+x*k}" y="${oy+(H-y-h)*k}" width="${w*k}" height="${h*k}" fill="${f}" stroke="${st}"/>`;for(let i=0;i<=cols;i++)s+=rect(i*(binW+gapX+uW),0,uW,H,'#c7b28a','#6d5c3b');s+=rect(0,0,W,rH,'#bda578','#6d5c3b')+rect(0,H-rH,W,rH,'#bda578','#6d5c3b');for(let r=0;r<rows;r++)for(let i=0;i<cols;i++)s+=rect(uW+i*(binW+gapX+uW)+gapX/2,bottom+r*(binH+gapY),binW,binH,'#e9ecef','#aaa');s+=`<text x="${vw/2}" y="16" text-anchor="middle" font-size="12" fill="#555">${Math.round(W)} mm</text>`;svg.innerHTML=s}"""
+          side="""function drawSide(svg,c){const{D,H,rows,binD,binH,gapD,gapY,bottom,uD,rH}=c,pad=28,vw=380,vh=250,k=Math.min((vw-2*pad)/D,(vh-2*pad)/H),ox=(vw-D*k)/2,oy=(vh-H*k)/2;let s='',rect=(x,y,w,h,f,st='#333')=>`<rect x="${ox+x*k}" y="${oy+(H-y-h)*k}" width="${w*k}" height="${h*k}" fill="${f}" stroke="${st}"/>`,clearD=binD+gapD,zFront=rH,zRear=D-rH-uD;s+=rect(zFront,0,uD,H,'#c7b28a','#6d5c3b')+rect(zRear,0,uD,H,'#c7b28a','#6d5c3b');s+=rect(0,0,rH,rH,'#bda578','#6d5c3b')+rect(D-rH,0,rH,rH,'#bda578','#6d5c3b')+rect(0,H-rH,rH,rH,'#bda578','#6d5c3b')+rect(D-rH,H-rH,rH,rH,'#bda578','#6d5c3b');for(let r=0;r<rows;r++){let y=bottom+r*(binH+gapY);s+=rect(zFront+uD+gapD/2,y,binD,binH,'#e9ecef','#aaa')+rect(zFront+uD,y-rH,clearD,rH,'#c7b28a','#6d5c3b')}s+=rect(zFront+uD,H-rH,clearD,rH,'#bda578','#6d5c3b');s+=`<text x="${vw/2}" y="16" text-anchor="middle" font-size="12" fill="#555">${Math.round(D)} mm</text>`;svg.innerHTML=s}"""
+          s,n1=re.subn(r'function drawFront\(svg,c\)\{.*?\nfunction drawSide', front+'\nfunction drawSide', s, count=1, flags=re.S)
+          s,n2=re.subn(r'function drawSide\(svg,c\)\{.*?\nfunction drawIso', side+'\nfunction drawIso', s, count=1, flags=re.S)
+          s,n3=re.subn(r'function drawIso\(svg,c\)\{.*?\nfunction update', 'function update', s, count=1, flags=re.S)
+
+          old="{name:'Liaisons pleine largeur haut/bas',qty:4,len:W,section:`${rW}×${rH}`}"
+          if 'Traverses supérieures avant-arrière' not in s:
+              s=s.replace(old, old+",{name:'Traverses supérieures avant-arrière',qty:(cols+1),len:clearD,section:`${rW}×${rH}`}" )
+
+          s=s.replace("drawFront($('front'),{W,H,cols,rows,uW,binW,binH,gapX,gapY,bottom})", "drawFront($('front'),{W,H,cols,rows,uW,rH,binW,binH,gapX,gapY,bottom})")
+          s,n4=re.subn(r"drawIso\(\$\('iso'\),\{[^;]+?\}\);?", "const rack3dCfg={W,H,D,cols,rows,uW,uD,rW,rH,binW,binD,binH,gapX,gapY,gapD,bottom};window.rack3DLastConfig=rack3dCfg;if(window.updateRack3D)window.updateRack3D(rack3dCfg);", s, count=1)
+
+          loader='''<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script><script type="module" src="./rack3d.js"></script>'''
+          if 'src="./rack3d.js"' not in s:
+              s=s.replace('</body>',loader+'</body>')
+
+          checks=[n1==1,n2==1,n3==1,n4==1,'id="rack3d"' in s,'Traverses supérieures avant-arrière' in s,'src="./rack3d.js"' in s]
+          if not all(checks):
+              raise SystemExit(f'Patch incomplete: {checks}, replacements={(n1,n2,n3,n4)}')
+          p.write_text(s,encoding='utf-8')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html
+          git commit -m "Replace isometric preview with interactive 3D and close top frame"
+          git push
