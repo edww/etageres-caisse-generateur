@@ -41,11 +41,10 @@ scene.add(floor);
 
 const mats={
   post:new THREE.MeshStandardMaterial({color:0xb79a68,roughness:.82}),
-  rail:new THREE.MeshStandardMaterial({color:0xc5aa78,roughness:.82}),
-  brace:new THREE.MeshStandardMaterial({color:0xa98955,roughness:.82}),
-  top:new THREE.MeshStandardMaterial({color:0xd0b98c,roughness:.78})
+  runner:new THREE.MeshStandardMaterial({color:0xd4b777,roughness:.78}),
+  brace:new THREE.MeshStandardMaterial({color:0xa98955,roughness:.82})
 };
-const edgeMat=new THREE.LineBasicMaterial({color:0x6f5b3a,transparent:true,opacity:.62});
+const edgeMat=new THREE.LineBasicMaterial({color:0x6f5b3a,transparent:true,opacity:.7});
 
 function clearRack(){
   while(rack.children.length){
@@ -54,9 +53,9 @@ function clearRack(){
     o.children?.forEach(c=>c.geometry?.dispose());
   }
 }
-function beam(x,y,z,w,h,d,type='rail'){
+function beam(x,y,z,w,h,d,type='runner'){
   const geo=new THREE.BoxGeometry(Math.max(.1,w),Math.max(.1,h),Math.max(.1,d));
-  const mesh=new THREE.Mesh(geo,mats[type] || mats.rail);
+  const mesh=new THREE.Mesh(geo,mats[type] || mats.runner);
   mesh.position.set(x+w/2,y+h/2,z+d/2);
   mesh.castShadow=true;
   mesh.receiveShadow=true;
@@ -66,16 +65,16 @@ function beam(x,y,z,w,h,d,type='rail'){
 }
 function fitCamera(cfg,resetAngle=false){
   const {W,H,D}=cfg;
-  const target=new THREE.Vector3(W/2,H*.42,D/2);
+  const target=new THREE.Vector3(W/2,H*.48,D/2);
   const oldTarget=controls.target.clone();
   const oldDir=camera.position.clone().sub(oldTarget).normalize();
   controls.target.copy(target);
   const diag=Math.hypot(W,H,D);
-  const dist=diag*1.25;
+  const dist=diag*1.22;
   if(resetAngle || !camera.userData.positioned){
-    camera.position.set(W/2 + dist*.9, H*.5 + dist*.55, D/2 + dist*.95);
+    camera.position.set(W/2 + dist*.95,H*.48 + dist*.58,D/2 + dist*.92);
     camera.userData.positioned=true;
-  } else {
+  }else{
     camera.position.copy(target.clone().add(oldDir.multiplyScalar(dist)));
   }
   camera.near=Math.max(1,diag/1000);
@@ -86,39 +85,43 @@ function fitCamera(cfg,resetAngle=false){
 
 window.updateRack3D=function(cfg){
   clearRack();
-  const {W,H,D,cols,rows,uW,uD,rW,rH,binW,binD,binH,gapX,gapY,gapD,bottom}=cfg;
-  const clearD=binD+gapD;
+  const {W,H,D,cols,rows,uW,uD,rW,rH,binW,binD,binH,gapX,gapY,bottom}=cfg;
   const zFront=rH;
   const zRear=D-rH-uD;
-  const runnerD=D-2*rH;
+  // Ana White "ladder" principle: runner overlaps the front and rear legs.
+  const runnerZ=zFront;
+  const runnerD=(zRear+uD)-zFront;
 
+  // Divider ladders: two vertical legs per divider.
   for(let c=0;c<=cols;c++){
     const x=c*(binW+gapX+uW);
     beam(x,0,zFront,uW,H,uD,'post');
     beam(x,0,zRear,uW,H,uD,'post');
   }
 
-  // Deux glissières porteuses par caisse. Elles longent les faces intérieures
-  // des montants avant et arrière, pour pouvoir être vissées dans les montants.
-  for(let r=0;r<rows;r++){
-    const y=Math.max(0,bottom+r*(binH+gapY)-rH);
-    for(let c=0;c<cols;c++){
-      const leftPostX=c*(binW+gapX+uW);
-      const rightPostX=(c+1)*(binW+gapX+uW);
-      beam(leftPostX+uW,y,zFront,rW,rH,runnerD,'rail');
-      beam(rightPostX-rW,y,zFront,rW,rH,runnerD,'rail');
+  // Side-mounted runners. Outer dividers have one inward-facing runner;
+  // center dividers have runners on both sides, matching Ana White's plan.
+  for(let c=0;c<=cols;c++){
+    const postX=c*(binW+gapX+uW);
+    for(let r=0;r<rows;r++){
+      // Tote hangs/slides from its upper rim, so the runner sits near the top of each bay.
+      const runnerTop=bottom+r*(binH+gapY)+binH;
+      const y=Math.max(0,runnerTop-rH);
+      if(c>0){
+        beam(postX-rW,y,runnerZ,rW,rH,runnerD,'runner');
+      }
+      if(c<cols){
+        beam(postX+uW,y,runnerZ,rW,rH,runnerD,'runner');
+      }
     }
   }
 
+  // Four full-width frame boards join all ladder sets at front and rear,
+  // top and bottom, like the original tote rack construction.
   beam(0,0,0,W,rH,rH,'brace');
   beam(0,0,D-rH,W,rH,rH,'brace');
   beam(0,H-rH,0,W,rH,rH,'brace');
   beam(0,H-rH,D-rH,W,rH,rH,'brace');
-
-  for(let c=0;c<=cols;c++){
-    const postX=c*(binW+gapX+uW);
-    beam(postX+(uW-rW)/2,H-rH,rH+uD,rW,rH,clearD,'top');
-  }
 
   floor.position.y=-1;
   fitCamera(cfg,false);
